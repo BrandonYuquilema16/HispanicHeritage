@@ -1,6 +1,5 @@
 import io
 from datetime import datetime
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -10,15 +9,12 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-
 st.set_page_config(page_title="Chile GDP Explorer | Hispanic Heritage Month", page_icon="🇨🇱", layout="wide")
 START_YEAR = 1976
 END_YEAR = 2026
 SOURCE_URL = "https://data.worldbank.org/indicator/NY.GDP.MKTP.CD?locations=CL"
 API_URL = "https://api.worldbank.org/v2/country/CHL/indicator/NY.GDP.MKTP.CD"
-
 st.markdown("""<style>.block-container{padding-top:1.5rem;max-width:1200px}h1,h2,h3{color:#15345a}div[data-testid='stMetric']{border:1px solid #e4e8ee;border-radius:12px;padding:12px}</style>""", unsafe_allow_html=True)
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def load_gdp():
     response = requests.get(API_URL, params={"format":"json", "date":f"{START_YEAR}:{END_YEAR}", "per_page":100}, timeout=25)
@@ -37,8 +33,6 @@ def load_gdp():
     df = pd.DataFrame(rows).sort_values("Year").drop_duplicates("Year").reset_index(drop=True)
     df.insert(1,"x (years since 1976)",df["Year"]-START_YEAR)
     return df
-
-
 def fit_model(df, degree):
     x = df["x (years since 1976)"].to_numpy(dtype=float)
     y = df["GDP (billion current US$)"].to_numpy(dtype=float)
@@ -53,8 +47,6 @@ def fit_model(df, degree):
     r2 = 1-sse/sst if sst > 0 else float("nan")
     rmse = float(np.sqrt(np.mean(residuals**2)))
     return fitted, predicted, residuals, r2, rmse
-
-
 def equation(poly, label="G"):
     terms = []
     for power in range(len(poly.coef)-1, -1, -1):
@@ -69,12 +61,8 @@ def equation(poly, label="G"):
         else:
             terms.append((" - " if coef < 0 else " + ") + term)
     return f"{label}(x) = " + ("".join(terms) if terms else "0")
-
-
 def csv_bytes(frame):
     return frame.to_csv(index=False).encode("utf-8-sig")
-
-
 def pdf_report(raw, working, fitted_data, poly, r2, rmse, latest, prediction, degree, edited):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=(8.5*inch,11*inch), rightMargin=42,leftMargin=42,topMargin=42,bottomMargin=42)
@@ -102,19 +90,16 @@ def pdf_report(raw, working, fitted_data, poly, r2, rmse, latest, prediction, de
        Paragraph("Context: Chile's economic history includes changing copper markets, political and economic reforms, the 1982 debt crisis, and the COVID-19 shock. The polynomial alone cannot explain these events.",styles["Normal"]),
        Paragraph("Data: "+SOURCE_URL,styles["Normal"])])
     doc.build(story)
-    return buffer.getvalue()
-
+    return buffer.getvalue
 st.title("🇨🇱 Chile GDP Explorer")
 st.caption("Hispanic Heritage Month • Historical GDP, polynomial regression, and calculus • 1976–2026")
 st.info("GDP is annual economic output, not Chile's net worth. Historical observations come from the World Bank. Any 2026 estimate shown below is a mathematical extrapolation, not an official value.")
-
 try:
     raw = load_gdp()
 except (requests.RequestException, ValueError, KeyError, TypeError) as exc:
     st.error(f"Could not retrieve verified historical data: {exc}")
     st.markdown(f"Check the [World Bank source]({SOURCE_URL}) and try refreshing. The app intentionally does not invent or substitute historical observations.")
     st.stop()
-
 latest = int(raw["Year"].max())
 if latest >= END_YEAR:
     st.warning("The source now includes 2026 data. The app still shows a 2026 model estimate separately and does not use 2026 observations to fit it.")
@@ -122,7 +107,6 @@ raw = raw.loc[raw["Year"] < END_YEAR].copy().reset_index(drop=True)
 if len(raw) < 6:
     st.error("Insufficient historical observations for the required degree-3 or higher model.")
     st.stop()
-
 st.sidebar.header("Model settings")
 degree = st.sidebar.slider("Polynomial degree",min_value=3,max_value=min(6,len(raw)-1),value=3)
 st.sidebar.caption("Degree 3 meets the assignment. Higher degrees may overfit.")
@@ -130,7 +114,6 @@ if st.sidebar.button("Restore original working data"):
     st.session_state["working_version"] = st.session_state.get("working_version",0)+1
     st.rerun()
 version = st.session_state.get("working_version",0)
-
 st.subheader("1. Historical source and raw data")
 c1,c2,c3=st.columns(3)
 c1.metric("First project year",str(int(raw["Year"].min())))
@@ -139,7 +122,6 @@ c3.metric("Historical observations",str(len(raw)))
 st.markdown(f"**Official source:** [World Bank — Chile GDP (current US$)]({SOURCE_URL}) | Indicator code: `NY.GDP.MKTP.CD` | Values converted from USD to **billions of current USD**.")
 st.dataframe(raw,hide_index=True,use_container_width=True,height=270)
 st.download_button("Download original historical data (CSV)",csv_bytes(raw),"chile_gdp_raw_1976_latest.csv","text/csv")
-
 st.subheader("2. Editable working table")
 st.write("Edit the GDP values below to test mathematical scenarios. The original historical table above is never changed. Edited values are **not** official historical observations.")
 working_input = st.data_editor(raw[["Year","GDP (billion current US$)"]],hide_index=True,use_container_width=True,num_rows="fixed",disabled=["Year"],key=f"gdp_editor_{version}")
@@ -157,13 +139,11 @@ edited = not np.allclose(working["GDP (billion current US$)"].to_numpy(),raw["GD
 if edited:
     st.warning("Scenario mode: the regression now uses edited data. Its results are NOT a fit to the unmodified World Bank series.")
 st.download_button("Download working table (CSV)",csv_bytes(working),"chile_gdp_working.csv","text/csv")
-
 try:
     poly, fitted, residuals, r2, rmse = fit_model(working,degree)
 except (ValueError,np.linalg.LinAlgError) as exc:
     st.error(f"Model could not be fitted: {exc}")
     st.stop()
-
 st.subheader("3. Polynomial equation and calculus")
 st.latex(equation(poly).replace("x^","x^"))
 st.caption("x = calendar year − 1976; G(x) is GDP in billions of current US dollars. Coefficients shown are rounded for display; calculations use full precision.")
@@ -173,14 +153,12 @@ st.markdown("**Second derivative — change in the annual GDP rate (billion USD/
 st.latex(equation(poly.deriv(2),"G''"))
 with st.expander("Full-precision polynomial coefficients"):
     st.dataframe(pd.DataFrame({"Power of x":list(range(len(poly.coef))),"Coefficient":poly.coef}),hide_index=True)
-
 st.subheader("4. Model quality")
 a,b,c=st.columns(3)
 a.metric("R²",f"{r2:.4f}" if np.isfinite(r2) else "Undefined")
 b.metric("RMSE",f"${rmse:.2f}B")
 c.metric("2026 estimate",f"${float(poly(END_YEAR-START_YEAR)):,.2f}B")
 st.caption("R² measures in-sample fit; RMSE is the typical in-sample error scale. Neither guarantees accurate forecasts.")
-
 st.subheader("5. Interactive GDP graph and slope explorer")
 st.write("Move the **year slider** to move the highlighted dot along the regression curve. The tangent line shows the slope (instantaneous rate of change) at that year. Hover over any point to inspect its year and GDP.")
 selected_graph_year = st.slider("Move the dot to a year", min_value=START_YEAR, max_value=END_YEAR, value=2026, step=1, key="graph_year")
@@ -196,7 +174,6 @@ if not selected_actual.empty:
     st.caption(f"Official observed GDP for {selected_graph_year}: ${float(selected_actual.iloc[0]):,.2f}B. The model dot is a fitted value, which may differ from the observation.")
 else:
     st.caption(f"No observed GDP in the selected dataset for {selected_graph_year}. This dot is a MODEL ESTIMATE, not an observation.")
-
 fig = go.Figure()
 fig.add_trace(go.Scatter(x=raw["Year"],y=raw["GDP (billion current US$)"],mode="markers",name="Official historical GDP",marker=dict(color="#1768a5",size=7)))
 if edited:
@@ -216,12 +193,10 @@ fig.update_layout(xaxis_title="Year",yaxis_title="GDP (billion current US$)",hov
 st.plotly_chart(fig,use_container_width=True)
 st.caption("Yellow dot = selected model value; green dashed line = tangent (slope); blue dots = historical observations; red curve = polynomial regression. The slider moves the dot. Mouse hover displays precise values.")
 st.download_button("Download graph (interactive HTML)",fig.to_html(include_plotlyjs=True).encode("utf-8"),"chile_gdp_graph.html","text/html")
-
 resid_fig=go.Figure(go.Scatter(x=working["Year"],y=residuals,mode="markers+lines",marker=dict(color="#147c77"),name="Residual"))
 resid_fig.add_hline(y=0,line_dash="dash")
 resid_fig.update_layout(title="Residuals: actual working GDP − fitted GDP",xaxis_title="Year",yaxis_title="Residual (billion USD)")
 st.plotly_chart(resid_fig,use_container_width=True)
-
 st.subheader("6. Estimate one year or multiple years")
 selected_year = st.number_input("Year to estimate",min_value=1976,max_value=2050,value=2026,step=1)
 estimate=float(poly(int(selected_year)-START_YEAR))
@@ -232,7 +207,7 @@ st.write(f"Second derivative at {int(selected_year)}: **{float(poly.deriv(2)(int
 if estimate < 0:
     st.error("The model predicts negative GDP, which is not economically meaningful. This demonstrates why polynomial extrapolation can fail.")
 years_text=st.text_input("Multiple years (comma-separated)",value="2024, 2025, 2026")
-try:
+try
     years=[int(part.strip()) for part in years_text.split(",") if part.strip()]
     if not years or len(years)>30 or any(y<1976 or y>2050 for y in years):
         raise ValueError("Enter 1–30 years between 1976 and 2050.")
@@ -241,7 +216,6 @@ try:
     st.download_button("Download predictions (CSV)",csv_bytes(predicted_table),"chile_gdp_predictions.csv","text/csv")
 except ValueError as exc:
     st.warning(f"Invalid multiple-year input: {exc}")
-
 st.subheader("7. Download model and project report")
 fit_table=working.copy()
 fit_table["Fitted GDP (billion US$)"]=fitted
@@ -249,17 +223,12 @@ fit_table["Residual (billion US$)"]=residuals
 st.download_button("Download model results and residuals (CSV)",csv_bytes(fit_table),"chile_gdp_model_results.csv","text/csv")
 report=pdf_report(raw,working,fit_table,poly,r2,rmse,latest,float(poly(END_YEAR-START_YEAR)),degree,edited)
 st.download_button("Download complete PDF report",report,"chile_gdp_project_report.pdf","application/pdf")
-
 st.subheader("8. Historical and cultural interpretation")
 st.markdown("""Chile is a Spanish-speaking South American country whose economy has been shaped by copper mining, trade, agriculture, services, and political and economic change. Historical events—including the 1982 debt crisis, the global financial crisis, and the COVID-19 pandemic—can affect economic indicators. **A polynomial curve alone cannot tell us why GDP changed.**
-
 **Interpretation:** Compare the actual observations with the fitted curve, identify years with unusually large residuals, and investigate the historical context. Remember that GDP is not a measure of cultural value, income equality, or quality of life.
-
 **Limitations:** The chosen series is *nominal GDP in current US dollars*, not inflation-adjusted GDP. Exchange rates and price changes affect the figures. Degree-3-or-higher polynomials may fit historical data while forecasting poorly. A 2026 extrapolation should never be labeled a measured value or official forecast. The project begins at 1976 by design, not at Chile's founding or the start of its economy.
 """)
 st.markdown(f"**Citation:** World Bank, World Development Indicators, *GDP (current US$), Chile*, indicator NY.GDP.MKTP.CD. [View source]({SOURCE_URL}). Accessed {datetime.now().date().isoformat()}.")
-
-
 st.subheader("9. 🇨🇱 Chile fun fact")
 fun_facts = [
     "Chile is one of the world's leading copper producers. Copper is important to its export economy, but GDP includes much more than mining.",
