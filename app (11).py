@@ -214,7 +214,8 @@ years=[int(part.strip()) for part in years_text.split(",") if part.strip()]
 if not years or len(years)>30 or any(y<1976 or y>2050 for y in years):
         
         raise ValueError("Enter 1–30 years between 1976 and 2050.")
-    predicted_table=pd.DataFrame({"Year":years,"Model GDP estimate (billion current US$)":[float(poly(y-START_YEAR)) for y in years],"Type":["EXTRAPOLATION — NOT OBSERVED" if y>latest else "FITTED VALUE — NOT RAW DATA" for y in years]})
+   
+predicted_table=pd.DataFrame({"Year":years,"Model GDP estimate (billion current US$)":[float(poly(y-START_YEAR)) for y in years],"Type":["EXTRAPOLATION — NOT OBSERVED" if y>latest else "FITTED VALUE — NOT RAW DATA" for y in years]})
     st.dataframe(predicted_table,hide_index=True,use_container_width=True)
     st.download_button("Download predictions (CSV)",csv_bytes(predicted_table),"chile_gdp_predictions.csv","text/csv")
 except ValueError as exc:
