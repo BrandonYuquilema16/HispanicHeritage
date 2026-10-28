@@ -207,7 +207,9 @@ st.write(f"Second derivative at {int(selected_year)}: **{float(poly.deriv(2)(int
 if estimate < 0:
     st.error("The model predicts negative GDP, which is not economically meaningful. This demonstrates why polynomial extrapolation can fail.")
 years_text=st.text_input("Multiple years (comma-separated)",value="2024, 2025, 2026")
-    years=[int(part.strip()) for part in years_text.split(",") if part.strip()]
+   
+
+years=[int(part.strip()) for part in years_text.split(",") if part.strip()]
     if not years or len(years)>30 or any(y<1976 or y>2050 for y in years):
         raise ValueError("Enter 1–30 years between 1976 and 2050.")
     predicted_table=pd.DataFrame({"Year":years,"Model GDP estimate (billion current US$)":[float(poly(y-START_YEAR)) for y in years],"Type":["EXTRAPOLATION — NOT OBSERVED" if y>latest else "FITTED VALUE — NOT RAW DATA" for y in years]})
